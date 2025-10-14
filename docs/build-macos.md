@@ -68,6 +68,9 @@ cd ..
 
 Run the following commands in the project root directory:
 ```bash
+# Create the database
+sqlx database create
+
 # Run database migrations
 sqlx migrate run --source backend/migrations
 
@@ -77,10 +80,8 @@ cargo sqlx prepare --workspace
 
 ## Step 7: Build and Run the Backend
 
+Run the following commands in the project root directory:
 ```bash
-# Navigate to backend directory
-cd backend
-
 # Build the project
 cargo build
 
