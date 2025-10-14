@@ -1,6 +1,43 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthOptions } from "next-auth";
+import { JWT } from "next-auth/jwt";
+
+/**
+ * Refresh the access token using the refresh token
+ */
+async function refreshAccessToken(token: JWT): Promise<JWT> {
+  try {
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
+    const response = await fetch(`${backendUrl}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: token.refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Refresh token request failed");
+    }
+
+    const refreshedData = await response.json();
+
+    if (!refreshedData.success || !refreshedData.data?.access_token) {
+      throw new Error("Invalid refresh token response");
+    }
+
+    return {
+      ...token,
+      accessToken: refreshedData.data.access_token,
+      accessTokenExpiry: Date.now() + refreshedData.data.expires_in * 1000,
+    };
+  } catch (error) {
+    console.error("Error refreshing access token:", error);
+    return {
+      ...token,
+      error: "RefreshAccessTokenError",
+    };
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -9,10 +46,6 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         username: { label: "Username", type: "text" },
         password: { label: "Password", type: "password" },
-        nodePublicKey: { label: "Node Public Key", type: "text" },
-        nodeAddress: { label: "Node Address", type: "text" },
-        macaroonPath: { label: "Macaroon Path", type: "text" },
-        tlsCertPath: { label: "TLS Certificate Path", type: "text" },
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) {
@@ -20,18 +53,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        if (
-          !credentials?.nodePublicKey ||
-          !credentials?.nodeAddress ||
-          !credentials?.macaroonPath ||
-          !credentials?.tlsCertPath
-        ) {
-          console.error("Missing node credentials");
-          return null;
-        }
-
         try {
-          // Step 1: Login to get access token
           const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
           const loginResponse = await fetch(`${backendUrl}/auth/login`, {
             method: "POST",
@@ -56,67 +78,25 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          const { access_token, user } = loginData.data;
+          const { access_token, refresh_token, user, expires_in } =
+            loginData.data;
 
-          if (!access_token) {
-            console.error("No access token");
+          if (!access_token || !refresh_token || !user) {
+            console.error("No access token, refresh token, or user data");
             return null;
           }
 
-          const nodeAuthResponse = await fetch(`${backendUrl}/api/node/auth`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${access_token}`,
-            },
-            body: JSON.stringify({
-              id: credentials.nodePublicKey,
-              address: credentials.nodeAddress,
-              macaroon: credentials.macaroonPath,
-              cert: credentials.tlsCertPath,
-            }),
-          });
-
-          console.log("Node authentication response:", {
-            id: credentials.nodePublicKey,
-            address: credentials.nodeAddress,
-            macaroon: credentials.macaroonPath,
-            cert: credentials.tlsCertPath,
-          });
-
-          if (!nodeAuthResponse.ok) {
-            console.error(
-              "Node authentication response:",
-              await nodeAuthResponse.text()
-            );
-            console.error(
-              "Node authentication headers:",
-              nodeAuthResponse.headers
-            );
-            console.error(
-              "Node authentication failed:",
-              nodeAuthResponse.status
-            );
-            return null;
-          }
-
-          const nodeAuthData = await nodeAuthResponse.json();
-          console.log("Node authentication data:", nodeAuthData);
-
-          // Return user data if both authentication steps succeed
-          if (user) {
-            return {
-              id: user.id,
-              name: user.account_name || user.username,
-              email: user.email,
-              username: user.username,
-              accessToken: access_token,
-              role: user.role,
-              accountId: user.account_id,
-            };
-          }
-
-          return null;
+          return {
+            id: user.id,
+            name: user.account_name || user.username,
+            email: user.email,
+            username: user.username,
+            accessToken: access_token,
+            refreshToken: refresh_token,
+            expiresIn: expires_in,
+            role: user.role,
+            accountId: user.account_id,
+          };
         } catch (error) {
           console.error("Auth error:", error);
           return null;
@@ -128,14 +108,45 @@ export const authOptions: NextAuthOptions = {
     signIn: "/login",
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // Initial sign in - store user data and tokens
       if (user) {
         token.username = user.username || "";
         token.accessToken = user.accessToken;
+        token.refreshToken = user.refreshToken;
+        token.expiresIn = user.expiresIn || 3600;
         token.role = user.role;
         token.accountId = user.accountId;
+        token.accessTokenExpiry = Date.now() + Number(token.expiresIn) * 1000;
+        return token;
       }
-      return token;
+
+      // If update trigger with a new accessToken (from node connection), use it
+      if (trigger === "update" && session?.accessToken) {
+        console.log("Updating token with new access token from node connection...");
+        token.accessToken = session.accessToken;
+        token.accessTokenExpiry = Date.now() + Number(token.expiresIn) * 1000;
+        return token;
+      }
+
+      // If update trigger with forceRefresh flag, refresh immediately
+      if (trigger === "update" && token.forceRefresh) {
+        console.log("Force refreshing token...");
+        const refreshedToken = await refreshAccessToken(token);
+        delete refreshedToken.forceRefresh;
+        return refreshedToken;
+      }
+
+      // Token is still valid if its expiry is greater than 5 minutes from now
+      if (
+        token.accessTokenExpiry &&
+        Date.now() < token.accessTokenExpiry - 5 * 60 * 1000
+      ) {
+        return token;
+      }
+
+      console.log("Access token expiring soon, refreshing...");
+      return await refreshAccessToken(token);
     },
     async session({ session, token }) {
       if (token) {
@@ -144,6 +155,7 @@ export const authOptions: NextAuthOptions = {
         session.user.role = token.role || "";
         session.user.accountId = token.accountId || "";
         session.accessToken = token.accessToken || "";
+        session.error = token.error;
       }
       return session;
     },
