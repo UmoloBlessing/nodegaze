@@ -32,6 +32,7 @@ async fn main() {
         .route("/", get(root_handler))
         .nest("/api/node", api::node::routes::node_router().await)
         .nest("/api/account", api::account::routes::account_router().await)
+        .nest("/api/credential", api::credential::routes::credential_routes())
         .nest("/auth", auth::routes::auth_router())
         .nest("/api/invite", api::invite::routes::invite_router().await)
         .nest(
@@ -57,7 +58,7 @@ async fn main() {
     let bind_address = format!("0.0.0.0:{}", config.server_port);
     let listener = tokio::net::TcpListener::bind(&bind_address).await.unwrap();
 
-    info!("Starting NodeGaze server on port {}", config.server_port);
+    info!("Started NodeGaze server on port {}", config.server_port);
     axum::serve(listener, app).await.unwrap();
 }
 
