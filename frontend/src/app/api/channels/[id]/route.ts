@@ -30,7 +30,7 @@ export async function GET(
       );
     }
 
-    const backendBase = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendBase = process.env.BACKEND_URL || "http://localhost:3000";
     const backendUrl = new URL(`${backendBase}/api/channels/${encodeURIComponent(id)}`);
 
     const incoming = new URL(request.url);

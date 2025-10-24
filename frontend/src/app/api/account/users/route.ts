@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     }
 
     const incomingUrl = new URL(request.url);
-    const backendBase = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendBase = process.env.BACKEND_URL || "http://localhost:3000";
     const backendUrl = new URL(`${backendBase}/api/account/get-account-users`);
 
     // Forward pagination or other query params transparently

@@ -8,7 +8,7 @@ import { JWT } from "next-auth/jwt";
  */
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
     const response = await fetch(`${backendUrl}/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,7 +54,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
+          const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
           const loginResponse = await fetch(`${backendUrl}/auth/login`, {
             method: "POST",
             headers: {

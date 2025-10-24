@@ -22,7 +22,7 @@ export async function GET() {
 
     console.log("Session found, making request to backend...");
 
-    const backendUrl = `${process.env.BACKEND_URL || "http://localhost:3030"}/api/events`;
+    const backendUrl = `${process.env.BACKEND_URL || "http://localhost:3000"}/api/events`;
     console.log("Backend URL:", backendUrl);
 
     const response = await fetch(backendUrl, {

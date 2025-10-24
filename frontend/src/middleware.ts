@@ -17,7 +17,7 @@ export default withAuth(
 
     // For routes that require node credentials, check if user has them
     try {
-      const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
+      const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
       const token = req.nextauth.token?.accessToken;
 
       if (!token) {

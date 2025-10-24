@@ -10,7 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
     const response = await fetch(`${backendUrl}/api/credential/status`, {
       method: "GET",
       headers: {

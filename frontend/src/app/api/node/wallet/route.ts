@@ -24,7 +24,7 @@ export async function GET() {
 
     console.log("Session found, forwarding request to backend...");
 
-    const backendBase = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendBase = process.env.BACKEND_URL || "http://localhost:3000";
     const backendUrl = `${backendBase}/api/node/wallet/balance`;
 
     console.log("Backend URL:", backendUrl);

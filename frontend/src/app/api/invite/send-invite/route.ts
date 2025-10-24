@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the backend API
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030"
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000"
     
     console.log("Calling backend API:", `${backendUrl}/api/invite/send-invite`);
     console.log("Request data:", { email });

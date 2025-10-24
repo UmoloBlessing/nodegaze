@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000";
     const response = await fetch(`${backendUrl}/api/node/auth`, {
       method: "POST",
       headers: {

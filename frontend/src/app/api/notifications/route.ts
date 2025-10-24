@@ -36,7 +36,7 @@ export async function GET() {
     console.log("Session valid, proceeding with request...");
 
     // Call the backend API
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030"
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000"
     
     console.log("Calling backend API:", `${backendUrl}/api/notification`);
     
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call the backend API
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:3030"
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3000"
     
     console.log("Calling backend API:", `${backendUrl}/api/notification`);
     console.log("Request data:", { name, notification_type, url });

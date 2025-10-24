@@ -42,7 +42,7 @@ The modern web interface for NodeGaze, built with Next.js 14, React, and TypeScr
 
 - Node.js 18+
 - npm, yarn, or pnpm
-- NodeGaze backend running on `http://localhost:3030`
+- NodeGaze backend running on `http://localhost:3000`
 
 ### Installation
 
@@ -66,7 +66,7 @@ The modern web interface for NodeGaze, built with Next.js 14, React, and TypeScr
 
    ```bash
    # API Configuration
-   BACKEND_URL=http://localhost:3030
+   BACKEND_URL=http://localhost:3000
    NEXTAUTH_URL=http://localhost:3000
    NEXTAUTH_SECRET=your-nextauth-secret-key
    

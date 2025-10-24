@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
     // Build backend URL and forward incoming query params (page, per_page, etc.)
     const incomingUrl = new URL(request.url);
-    const backendBase = process.env.BACKEND_URL || "http://localhost:3030";
+    const backendBase = process.env.BACKEND_URL || "http://localhost:3000";
     const id = incomingUrl.searchParams.get("id");
     if (!id) {
       return NextResponse.json(
