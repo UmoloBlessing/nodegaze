@@ -55,7 +55,7 @@ impl JwtUtils {
     /// Create a new JwtUtils instance with keys from environment
     pub fn new() -> Result<Self, ServiceError> {
         let config = crate::config::Config::from_env()
-            .map_err(|e| ServiceError::validation(format!("Config error: {}", e)))?;
+            .map_err(|e| ServiceError::validation(format!("Config error: {e}")))?;
 
         let encoding_key = EncodingKey::from_secret(config.jwt_secret.as_bytes());
         let decoding_key = DecodingKey::from_secret(config.jwt_secret.as_bytes());
@@ -81,7 +81,7 @@ impl JwtUtils {
     ) -> Result<String, ServiceError> {
         // Get expires_in from config
         let config = Config::from_env()
-            .map_err(|e| ServiceError::validation(format!("Config error: {}", e)))?;
+            .map_err(|e| ServiceError::validation(format!("Config error: {e}")))?;
         let expires_in = config.jwt_expires_in_seconds;
 
         let now = Utc::now();
@@ -98,14 +98,14 @@ impl JwtUtils {
         };
 
         encode(&Header::default(), &claims, &self.encoding_key)
-            .map_err(|e| ServiceError::validation(format!("Token generation failed: {}", e)))
+            .map_err(|e| ServiceError::validation(format!("Token generation failed: {e}")))
     }
 
     /// Validate and decode a JWT token
     pub fn validate_token(&self, token: &str) -> Result<Claims, ServiceError> {
         decode::<Claims>(token, &self.decoding_key, &self.validation)
             .map(|token_data| token_data.claims)
-            .map_err(|e| ServiceError::validation(format!("Token validation failed: {}", e)))
+            .map_err(|e| ServiceError::validation(format!("Token validation failed: {e}")))
     }
 
     /// Generate a refresh token (longer expiration)
@@ -127,24 +127,15 @@ impl JwtUtils {
             iat: now.timestamp() as usize,
         };
 
-        encode(&Header::default(), &claims, &self.encoding_key).map_err(|e| {
-            ServiceError::validation(format!("Refresh token generation failed: {}", e))
-        })
+        encode(&Header::default(), &claims, &self.encoding_key)
+            .map_err(|e| ServiceError::validation(format!("Refresh token generation failed: {e}")))
     }
 }
 
 /// Extract user ID from JWT claims
 impl Claims {
-    pub fn user_id(&self) -> &str {
-        &self.sub
-    }
-
     pub fn account_id(&self) -> &str {
         &self.account_id
-    }
-
-    pub fn role(&self) -> &str {
-        &self.role
     }
 
     pub fn has_node_credentials(&self) -> bool {
@@ -153,21 +144,5 @@ impl Claims {
 
     pub fn node_credentials(&self) -> Option<&NodeCredentials> {
         self.node_credentials.as_ref()
-    }
-
-    /// Check if token has expired
-    pub fn is_expired(&self) -> bool {
-        let now = Utc::now().timestamp() as usize;
-        now > self.exp
-    }
-
-    /// Check if user has specific role
-    pub fn has_role(&self, role: &str) -> bool {
-        self.role == role
-    }
-
-    /// Check if user is admin
-    pub fn is_admin(&self) -> bool {
-        self.has_role("Admin")
     }
 }

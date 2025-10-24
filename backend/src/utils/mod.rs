@@ -4,18 +4,15 @@
 //! or traits that do not fit into other specific domain modules.
 
 use crate::errors::LightningError;
+use bitcoin::Txid;
 use bitcoin::secp256k1::PublicKey;
-use bitcoin:: Txid;
 use expanduser::expanduser;
 use lightning::ln::features::NodeFeatures;
-use serde::{Deserialize, Serialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
-use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use std::time::SystemTime;
 
-pub mod crypto;
 pub mod generate_random_string;
 pub mod handlers_common;
 pub mod jwt;
@@ -37,30 +34,19 @@ impl NodeId {
             NodeId::PublicKey(pk) => {
                 if pk != node_id {
                     return Err(LightningError::ValidationError(format!(
-                        "The provided node id does not match the one returned by the backend ({} != {}).",
-                        pk, node_id
+                        "The provided node id does not match the one returned by the backend ({pk} != {node_id})"
                     )));
                 }
             }
             NodeId::Alias(a) => {
                 if a != alias {
                     return Err(LightningError::ValidationError(format!(
-                        "The provided alias does not match the one returned by the backend ({} != {}).",
-                        a, alias
+                        "The provided alias does not match the one returned by the backend ({a} != {alias})"
                     )));
                 }
             }
         }
         Ok(())
-    }
-
-    /// Returns the public key of the node if it is a public key node id.
-    pub fn get_pk(&self) -> Result<&PublicKey, String> {
-        if let NodeId::PublicKey(pk) = self {
-            Ok(pk)
-        } else {
-            Err("NodeId is not a PublicKey".to_string())
-        }
     }
 }
 
@@ -93,7 +79,7 @@ impl Display for NodeInfo {
         let pk = self.pubkey.to_string();
         let pk_summary = format!("{}...{}", &pk[..6], &pk[pk.len() - 6..]);
         if self.alias.is_empty() {
-            write!(f, "{}", pk_summary)
+            write!(f, "{pk_summary}")
         } else {
             write!(f, "{}({})", self.alias, pk_summary)
         }
@@ -144,7 +130,6 @@ pub struct CustomInvoice {
     pub payment_preimage: String,
     pub value: u64,
     pub value_msat: u64,
-    pub settled: Option<bool>,
     pub creation_date: Option<i64>,
     pub settle_date: Option<i64>,
     pub payment_request: String,
@@ -180,7 +165,7 @@ impl Display for NodePolicy {
             self.fee_rate_milli_msat,
             self.min_htlc_msat,
             match self.max_htlc_msat {
-                Some(max) => format!(", max_htlc: {}msat", max),
+                Some(max) => format!(", max_htlc: {max}msat"),
                 None => String::new(),
             }
         )
@@ -322,13 +307,13 @@ pub enum InvoiceStatus {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub enum ChannelState {
-    Opening,  // funding tx not confirmed
+    Opening, // funding tx not confirmed
     #[default]
-    Active,   // normal / available
+    Active, // normal / available
     Disabled, // temporarily disabled
-    Closing,  // cooperative or force close initiated
-    Closed,   // channel is closed
-    Failed,   // failed or on-chain resolved
+    Closing, // cooperative or force close initiated
+    Closed,  // channel is closed
+    Failed,  // failed or on-chain resolved
 }
 
 /// The severity level of a log entry.
@@ -388,7 +373,7 @@ pub mod serde_address {
         if s.starts_with("https://") || s.starts_with("http://") {
             Ok(s)
         } else {
-            Ok(format!("https://{}", s))
+            Ok(format!("https://{s}"))
         }
     }
 }
@@ -457,13 +442,13 @@ impl From<ShortChannelID> for u64 {
 
 impl FromStr for PaymentState {
     type Err = String;
-    
+
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_lowercase().as_str() {
             "inflight" => Ok(PaymentState::Inflight),
             "failed" => Ok(PaymentState::Failed),
             "settled" => Ok(PaymentState::Settled),
-            _ => Err(format!("Invalid payment state: {}", input)),
+            _ => Err(format!("Invalid payment state: {input}")),
         }
     }
 }
@@ -475,7 +460,7 @@ impl Display for PaymentState {
             PaymentState::Failed => "failed",
             PaymentState::Settled => "settled",
         };
-        write!(f, "{}", state)
+        write!(f, "{state}")
     }
 }
 
@@ -491,13 +476,13 @@ impl PaymentState {
 
 impl FromStr for PaymentType {
     type Err = String;
-    
+
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_lowercase().as_str() {
             "outgoing" => Ok(PaymentType::Outgoing),
             "incoming" => Ok(PaymentType::Incoming),
             "forwarded" => Ok(PaymentType::Forwarded),
-            _ => Err(format!("Invalid payment type: {}", input)),
+            _ => Err(format!("Invalid payment type: {input}")),
         }
     }
 }
@@ -509,7 +494,7 @@ impl Display for PaymentType {
             PaymentType::Incoming => "incoming",
             PaymentType::Forwarded => "forwarded",
         };
-        write!(f, "{}", payment_type)
+        write!(f, "{payment_type}")
     }
 }
 
@@ -523,7 +508,9 @@ impl PaymentType {
     }
 }
 
-pub fn deserialize_payment_types<'de, D>(deserializer: D) -> Result<Option<Vec<PaymentType>>, D::Error>
+pub fn deserialize_payment_types<'de, D>(
+    deserializer: D,
+) -> Result<Option<Vec<PaymentType>>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -539,8 +526,9 @@ where
                 .map(|payment_type| payment_type.trim())
                 .filter(|payment_type| !payment_type.is_empty())
                 .map(|payment_type| {
-                    PaymentType::from_str(payment_type)
-                        .map_err(|err| Error::custom(format!("Invalid payment type '{}': {}", payment_type, err)))
+                    PaymentType::from_str(payment_type).map_err(|err| {
+                        Error::custom(format!("Invalid payment type '{payment_type}': {err}"))
+                    })
                 })
                 .collect::<Result<Vec<PaymentType>, _>>()?;
 
@@ -562,20 +550,20 @@ impl Display for InvoiceStatus {
             InvoiceStatus::Expired => "expired",
             InvoiceStatus::Failed => "failed",
         };
-        write!(f, "{}", status)
+        write!(f, "{status}")
     }
 }
 
 impl FromStr for InvoiceStatus {
     type Err = String;
-    
+
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_lowercase().as_str() {
             "settled" => Ok(InvoiceStatus::Settled),
             "open" => Ok(InvoiceStatus::Open),
             "expired" => Ok(InvoiceStatus::Expired),
             "failed" => Ok(InvoiceStatus::Failed),
-            _ => Err(format!("Invalid invoice status: {}", input)),
+            _ => Err(format!("Invalid invoice status: {input}")),
         }
     }
 }
@@ -590,13 +578,13 @@ impl Display for ChannelState {
             ChannelState::Closed => "closed",
             ChannelState::Failed => "failed",
         };
-        write!(f, "{}", state)
+        write!(f, "{state}")
     }
 }
 
 impl FromStr for ChannelState {
     type Err = String;
-    
+
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         match input.to_lowercase().as_str() {
             "opening" => Ok(ChannelState::Opening),
@@ -605,7 +593,7 @@ impl FromStr for ChannelState {
             "closing" => Ok(ChannelState::Closing),
             "closed" => Ok(ChannelState::Closed),
             "failed" => Ok(ChannelState::Failed),
-            _ => Err(format!("Invalid channel state: {}", input)),
+            _ => Err(format!("Invalid channel state: {input}")),
         }
     }
 }

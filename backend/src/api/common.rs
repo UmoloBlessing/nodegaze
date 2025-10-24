@@ -192,7 +192,7 @@ where
                 .filter(|state| !state.is_empty())
                 .map(|state| {
                     T::from_str(state)
-                        .map_err(|e| Error::custom(format!("Invalid state '{}': {}", state, e)))
+                        .map_err(|e| Error::custom(format!("Invalid state '{state}': {e}")))
                 })
                 .collect::<Result<Vec<T>, _>>()?;
 
@@ -265,11 +265,6 @@ impl<T> ApiResponse<T> {
             pagination: None,
             timestamp: chrono::Utc::now().to_rfc3339(),
         }
-    }
-
-    /// Create a successful response with default message
-    pub fn ok(data: T) -> Self {
-        Self::success(data, "Request successful")
     }
 
     /// Create a successful paginated response
@@ -349,16 +344,13 @@ pub fn service_error_to_http(error: ServiceError) -> (StatusCode, String) {
         ServiceError::NotFound { entity, identifier } => (
             StatusCode::NOT_FOUND,
             "not_found",
-            format!("{} '{}' not found", entity, identifier),
+            format!("{entity} '{identifier}' not found"),
         ),
         ServiceError::AlreadyExists { entity, identifier } => (
             StatusCode::CONFLICT,
             "already_exists",
-            format!("{} '{}' already exists", entity, identifier),
+            format!("{entity} '{identifier}' already exists"),
         ),
-        ServiceError::PermissionDenied { message } => {
-            (StatusCode::FORBIDDEN, "permission_denied", message)
-        }
         ServiceError::InvalidOperation { message } => {
             (StatusCode::BAD_REQUEST, "invalid_operation", message)
         }
@@ -422,11 +414,6 @@ pub fn apply_pagination<T>(items: Vec<T>, pagination: &PaginationFilter) -> Vec<
     let limit = pagination.limit() as usize;
 
     items.into_iter().skip(offset).take(limit).collect()
-}
-
-/// Get filtered count without pagination
-pub fn get_filtered_count<T>(items: &[T]) -> u64 {
-    items.len() as u64
 }
 
 #[cfg(test)]

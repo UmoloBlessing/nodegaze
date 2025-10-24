@@ -5,6 +5,7 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use std::str::FromStr;
 
+#[derive(Clone)]
 pub struct EmailService {
     mailer: AsyncSmtpTransport<Tokio1Executor>,
     config: EmailConfig,
@@ -15,10 +16,11 @@ impl EmailService {
     pub fn new(config: EmailConfig) -> ServiceResult<Self> {
         let creds = Credentials::new(config.smtp_username.clone(), config.smtp_password.clone());
 
-        let mailer = AsyncSmtpTransport::<Tokio1Executor>::relay(&config.smtp_host)
+        let mailer = AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&config.smtp_host)
             .map_err(|e| ServiceError::validation(&format!("Invalid SMTP host: {}", e)))?
             .port(config.smtp_port)
             .credentials(creds)
+            .timeout(Some(std::time::Duration::from_secs(30)))
             .build();
 
         Ok(Self { mailer, config })
@@ -33,7 +35,7 @@ impl EmailService {
         inviter_name: &str,
         account_name: &str,
     ) -> ServiceResult<()> {
-        let subject = format!("You've been invited to join {}", account_name);
+        let subject = format!("You've been invited to join {account_name}");
         let invite_url = format!(
             "{}/accept-invite?token={}",
             self.config.base_url, invite_token
@@ -69,10 +71,10 @@ impl EmailService {
             "{} <{}>",
             self.config.from_name, self.config.from_email
         ))
-        .map_err(|e| ServiceError::validation(&format!("Invalid from email: {}", e)))?;
+        .map_err(|e| ServiceError::validation(format!("Invalid from email: {e}")))?;
 
         let to_mailbox = Mailbox::from_str(to_email)
-            .map_err(|e| ServiceError::validation(&format!("Invalid recipient email: {}", e)))?;
+            .map_err(|e| ServiceError::validation(format!("Invalid recipient email: {e}")))?;
 
         let email = Message::builder()
             .from(from_mailbox)
@@ -91,12 +93,12 @@ impl EmailService {
                             .body(html_content.to_string()),
                     ),
             )
-            .map_err(|e| ServiceError::validation(&format!("Failed to build email: {}", e)))?;
+            .map_err(|e| ServiceError::validation(format!("Failed to build email: {e}")))?;
 
         self.mailer
             .send(email)
             .await
-            .map_err(|e| ServiceError::validation(&format!("Failed to send email: {}", e)))?;
+            .map_err(|e| ServiceError::validation(format!("Failed to send email: {e}")))?;
 
         Ok(())
     }
@@ -122,7 +124,7 @@ impl EmailService {
                     
                     <p>Hi {},</p>
                     
-                    <p><strong>{}</strong> has invited you to join <strong>{}</strong>.</p>
+                    <p><strong>{}</strong> has invited you to join <strong>{} organization</strong>.</p>
                     
                     <p>Click the button below to accept your invitation:</p>
                     
